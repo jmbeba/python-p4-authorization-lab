@@ -18,6 +18,14 @@ db.init_app(app)
 
 api = Api(app)
 
+@app.before_request
+def checked_if_logged_in():
+    if ('user_id' not in session or not session['user_id']) and request.endpoint in ['member_index','member_article']:
+        return make_response(
+            {'error':'Unauthorized'},
+            401
+        )
+
 class ClearSession(Resource):
 
     def delete(self):
@@ -85,14 +93,29 @@ class CheckSession(Resource):
         return {}, 401
 
 class MemberOnlyIndex(Resource):
-    
     def get(self):
-        pass
+        articles = Article.query.filter(Article.is_member_only == True).all()
+        
+        return make_response(
+            [article.to_dict() for article in articles],
+            200
+        )
 
 class MemberOnlyArticle(Resource):
     
     def get(self, id):
-        pass
+        article = Article.query.filter(Article.id == id).first()
+        
+        if not article:
+            return make_response(
+                {"error":"Article not found"},
+                404
+            )
+            
+        return make_response(
+            article.to_dict(),
+            200
+        )
 
 api.add_resource(ClearSession, '/clear', endpoint='clear')
 api.add_resource(IndexArticle, '/articles', endpoint='article_list')
